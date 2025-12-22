@@ -1,3 +1,4 @@
+
 import type { DataRow, ProductConfig, Employee, EmployeeData, ExploitationData } from '../types';
 import { COL, HINH_THUC_XUAT_THU_HO } from '../constants';
 import { getRowValue, getHeSoQuyDoi, getDisplayParentGroup, getHinhThucThanhToan } from '../utils/dataUtils';
@@ -175,7 +176,9 @@ export function processEmployeeData(
         const revenue = price; // Doanh thu là giá trị của cột Giá bán_1
         const maNganhHang = getRowValue(row, COL.MA_NGANH_HANG);
         const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
-        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig);
+        const productName = getRowValue(row, COL.PRODUCT);
+        
+        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig, productName);
         const revenueQD = revenue * heso;
         const customer = getRowValue(row, COL.CUSTOMER_NAME);
         const dateCreated: Date = row.parsedDate;
@@ -188,6 +191,11 @@ export function processEmployeeData(
         if (!employeeDailyTrend[creator]) employeeDailyTrend[creator] = {};
         if (!employeeDailyTrend[creator][dateKey]) employeeDailyTrend[creator][dateKey] = 0;
 
+        // Logic trọng số cho Vieon khi tính số lượng
+        const subgroup = productConfig.childToSubgroupMap[maNhomHang];
+        const isVieon = subgroup === 'Vieon' || (productName || '').toString().includes('VieON');
+        const weightedQuantity = isVieon ? (quantity * heso) : quantity;
+
         // --- Aggregate general stats ---
         const emp = employeeStats[creator];
         emp.doanhThuThuc! += revenue;
@@ -195,16 +203,16 @@ export function processEmployeeData(
         emp.totalOrders! += 1;
         if (customer) emp.customerSet.add(customer);
         if (getHinhThucThanhToan(row) === 'tra_gop') {
-            emp.slTraCham! += quantity;
+            emp.slTraCham! += weightedQuantity; // Cập nhật số lượng trọng số
             emp.doanhThuTraCham! += revenue;
         }
         
         const parentGroupForPerf = productConfig.childToParentMap[maNhomHang] || 'Không xác định';
         if (parentGroupForPerf === 'CE' || parentGroupForPerf === 'ICT') {
-            emp.slCE_ICT! += quantity;
+            emp.slCE_ICT! += weightedQuantity; // Cập nhật số lượng trọng số
             emp.doanhThu_CE_ICT! += revenue;
             if (getHinhThucThanhToan(row) === 'tra_gop') {
-                emp.slTraCham_CE_ICT! += quantity;
+                emp.slTraCham_CE_ICT! += weightedQuantity; // Cập nhật số lượng trọng số
                 emp.doanhThuTraCham_CE_ICT! += revenue;
             }
         }
@@ -224,39 +232,39 @@ export function processEmployeeData(
 
         // SP Chính
         if (parentGroup === 'ICT') {
-            stats.slICT! += quantity;
+            stats.slICT! += weightedQuantity;
             stats.doanhThuICT! += revenue;
         } else if (parentGroup === 'CE') {
-            stats.slCE_main! += quantity;
+            stats.slCE_main! += weightedQuantity;
             stats.doanhThuCE_main! += revenue;
         } else if (parentGroup === 'Gia dụng') {
-            stats.slGiaDung_main! += quantity; // Main for Performance check
+            stats.slGiaDung_main! += weightedQuantity; 
         }
 
         // Bán Kèm & Các nhóm khác
         if (parentGroup === 'Bảo hiểm') {
-            stats.slBaoHiem! += quantity;
+            stats.slBaoHiem! += weightedQuantity;
             stats.doanhThuBaoHiem! += revenue;
         } else if (parentGroup === 'Sim') {
-            stats.slSim! += quantity;
+            stats.slSim! += weightedQuantity;
             stats.doanhThuSim! += revenue;
-        } else if (parentGroup === 'Đồng hồ' || parentGroup === 'Wearable') { // Check for 'Đồng hồ' explicitly
-            stats.slDongHo! += quantity;
+        } else if (parentGroup === 'Đồng hồ' || parentGroup === 'Wearable') { 
+            stats.slDongHo! += weightedQuantity;
             stats.doanhThuDongHo! += revenue;
         } else if (parentGroup === 'Phụ kiện') {
             stats.doanhThuPhuKien! += revenue;
-            stats.slPhuKien! += quantity; // Accumulate total quantity for Phu Kien
-            if (childGroup === 'Camera') stats.slCamera! += quantity;
-            else if (childGroup === 'Loa') stats.slLoa! += quantity;
-            else if (childGroup === 'Pin SDP') stats.slPinSDP! += quantity;
-            else if (childGroup === 'Tai nghe BLT') stats.slTaiNgheBLT! += quantity;
+            stats.slPhuKien! += weightedQuantity; 
+            if (childGroup === 'Camera') stats.slCamera! += weightedQuantity;
+            else if (childGroup === 'Loa') stats.slLoa! += weightedQuantity;
+            else if (childGroup === 'Pin SDP') stats.slPinSDP! += weightedQuantity;
+            else if (childGroup === 'Tai nghe BLT') stats.slTaiNgheBLT! += weightedQuantity;
         } else if (parentGroup === 'Gia dụng') {
             stats.doanhThuGiaDung! += revenue;
-            stats.slGiaDung! += quantity; // Accumulate total quantity for Gia Dung
-            if (childGroup === 'Máy lọc nước') stats.slMayLocNuoc! += quantity;
-            else if (childGroup === 'NC đ.tử/cao tần' || childGroup === 'NC nắp gài/rời') stats.slNoiCom! += quantity;
-            else if (childGroup === 'Nồi chiên') stats.slNoiChien! += quantity;
-            else if (childGroup === 'Quạt điện') stats.slQuatDien! += quantity;
+            stats.slGiaDung! += weightedQuantity; 
+            if (childGroup === 'Máy lọc nước') stats.slMayLocNuoc! += weightedQuantity;
+            else if (childGroup === 'NC đ.tử/cao tần' || childGroup === 'NC nắp gài/rời') stats.slNoiCom! += weightedQuantity;
+            else if (childGroup === 'Nồi chiên') stats.slNoiChien! += weightedQuantity;
+            else if (childGroup === 'Quạt điện') stats.slQuatDien! += weightedQuantity;
         }
     });
 
@@ -290,12 +298,10 @@ export function processEmployeeData(
         let weakPointsExploitation = 0;
 
         if (thresholds) {
-            // Revenue weaknesses
             if (emp.doanhThuQD <= thresholds.dtqd_40p) weakPointsRevenue++;
             if (emp.hieuQuaValue < 35) weakPointsRevenue++;
             if (emp.dtTraChamPercent_CE_ICT < 45) weakPointsRevenue++;
             
-            // Exploitation weaknesses
             if (emp.slCE_ICT <= thresholds.slCE_ICT_30p) weakPointsExploitation++;
             if (emp.slTraCham_CE_ICT <= thresholds.slTraCham_CE_ICT_30p) weakPointsExploitation++;
             if (emp.traChamPercent_CE_ICT < 50) weakPointsExploitation++;

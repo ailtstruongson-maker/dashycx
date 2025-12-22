@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import type { DataRow, ProductConfig, Employee, HeadToHeadTableConfig } from '../types';
 import { getRowValue, toLocalISOString, getHeSoQuyDoi } from '../utils/dataUtils';
@@ -70,12 +71,21 @@ export const useHeadToHeadLogic = ({
             const revenue = price; 
             const maNganhHang = getRowValue(row, COL.MA_NGANH_HANG);
             const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
-            const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig);
+            const productName = getRowValue(row, COL.PRODUCT);
+            
+            const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig, productName);
             const revenueQD = revenue * heso;
+
+            // Logic: Với Vieon, nhân Số lượng với hệ số quy đổi
+            const subgroup = productConfig.childToSubgroupMap[maNhomHang];
+            const parentGroup = productConfig.childToParentMap[maNhomHang];
+            const isVieon = subgroup === 'Vieon' || parentGroup === 'Vieon' || (productName || '').toString().includes('VieON');
+            
+            const weightedQuantity = isVieon ? (quantity * heso) : quantity;
 
             salesByEmployeeByDate[employee][dateKey].revenue += revenue;
             salesByEmployeeByDate[employee][dateKey].revenueQD += revenueQD;
-            salesByEmployeeByDate[employee][dateKey].quantity += quantity;
+            salesByEmployeeByDate[employee][dateKey].quantity += weightedQuantity;
         });
         
         // Pre-calculate daily totals for all employees for HQQD calculation
@@ -179,7 +189,6 @@ export const useHeadToHeadLogic = ({
         tableRows.forEach(row => {
             (row as any).isBottom30 = bottom30PercentNames.has(row.name);
         });
-        // --- END: BOTTOM 30% CALCULATION ---
         
         const top30PercentNoSalesNames = new Set<string>();
         const rowsWithActivity = tableRows.filter(r => r.daysWithNoSales < 7);
@@ -196,7 +205,6 @@ export const useHeadToHeadLogic = ({
             }
         }
         
-        // Calculate daily averages per department for conditional formatting
         const deptAvgByDate = new Map<string, Map<string, number>>();
         dateHeaders.forEach(date => {
             const dateKey = toLocalISOString(date);
@@ -216,7 +224,6 @@ export const useHeadToHeadLogic = ({
             deptAvgByDate.set(dateKey, avgMap);
         });
 
-        // Sorting
         tableRows.sort((a, b) => {
             const valA = a[sortConfig.key as keyof typeof a];
             const valB = b[sortConfig.key as keyof typeof b];
@@ -224,11 +231,9 @@ export const useHeadToHeadLogic = ({
             if (typeof valA === 'number' && typeof valB === 'number') {
                 if (valA !== valB) return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
             }
-            // Secondary sort by total desc
             return b.total - a.total; 
         });
 
-        // Grouping
         const groupedRows: { [key: string]: typeof tableRows } = tableRows.reduce((acc, row) => {
             const dept = row.department;
             if (!acc[dept]) acc[dept] = [];
@@ -238,14 +243,12 @@ export const useHeadToHeadLogic = ({
 
         const sortedDepartments = Object.keys(groupedRows).sort((a,b) => a.localeCompare(b));
 
-        // Department Totals Calculation
         const departmentTotals = new Map<string, any>();
         sortedDepartments.forEach(dept => {
             const rowsInDept = groupedRows[dept];
             const deptTotals = { daily: new Map<string, number>(), total: 0, daysWithNoSales: 0 };
 
             if (rowsInDept.length > 0) {
-                // --- Daily Totals ---
                 dateHeaders.forEach(date => {
                     const dateKey = toLocalISOString(date);
                     if (config.metricType === 'hieuQuaQD') {
@@ -266,17 +269,14 @@ export const useHeadToHeadLogic = ({
                     }
                 });
 
-                // --- 7-Day Total ---
                 if (config.metricType === 'hieuQuaQD') {
                     const deptTotalRevenue = rowsInDept.reduce((sum, r) => sum + Object.values(salesByEmployeeByDate[r.name] || {}).reduce((s, d) => s + d.revenue, 0), 0);
                     const deptTotalRevenueQD = rowsInDept.reduce((sum, r) => sum + Object.values(salesByEmployeeByDate[r.name] || {}).reduce((s, d) => s + d.revenueQD, 0), 0);
                     const totalHqqd = deptTotalRevenue > 0 ? ((deptTotalRevenueQD / deptTotalRevenue) - 1) * 100 : 0;
                     
                     if (config.totalCalculationMethod === 'average') {
-                        // Average of each employee's 7-day HQQD value
                         deptTotals.total = rowsInDept.reduce((sum, r) => sum + r.total, 0) / (rowsInDept.length || 1);
                     } else {
-                        // HQQD calculated on the department's 7-day totals
                         deptTotals.total = totalHqqd;
                     }
                 } else {
@@ -285,14 +285,11 @@ export const useHeadToHeadLogic = ({
                         deptTotals.total /= (rowsInDept.length || 1);
                     }
                 }
-
-                // --- Other Stats ---
                 deptTotals.daysWithNoSales = rowsInDept.reduce((sum, r) => sum + r.daysWithNoSales, 0) / (rowsInDept.length || 1);
             }
             departmentTotals.set(dept, deptTotals);
         });
         
-        // Grand Totals
         const totals = { daily: new Map<string, number>(), total: 0, daysWithNoSales: 0 };
         let grandTotalRevenue = 0;
         let grandTotalRevenueQD = 0;
@@ -307,7 +304,6 @@ export const useHeadToHeadLogic = ({
         }
 
         if (config.metricType === 'hieuQuaQD') {
-             // Correctly calculate daily totals for the footer from pre-calculated totals
              dateHeaders.forEach(date => {
                 const dateKey = toLocalISOString(date);
                 const dayTotal = dailyGrandTotals.get(dateKey);

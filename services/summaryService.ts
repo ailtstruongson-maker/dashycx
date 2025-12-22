@@ -30,48 +30,47 @@ export function processSummaryTable(
         'parent': (row) => productConfig.childToParentMap[getRowValue(row, COL.MA_NHOM_HANG)] || 'Không xác định',
         'child': (row) => productConfig.childToSubgroupMap[getRowValue(row, COL.MA_NHOM_HANG)] || 'Không xác định',
         'manufacturer': (row) => getRowValue(row, COL.MANUFACTURER) || 'Không rõ',
-        'creator': (row) => abbreviateName(getRowValue(row, COL.NGUOI_TAO) || 'Không xác định'), // Apply abbreviation here
+        'creator': (row) => abbreviateName(getRowValue(row, COL.NGUOI_TAO) || 'Không xác định'),
         'product': (row) => getRowValue(row, COL.PRODUCT) || 'Sản phẩm lỗi tên'
     };
 
-    // Ensure we have a valid drilldown order, defaulting if empty
     const drilldownOrder = (filters.summaryTable.drilldownOrder && filters.summaryTable.drilldownOrder.length > 0)
         ? filters.summaryTable.drilldownOrder
         : ['parent', 'child', 'manufacturer', 'creator', 'product'];
 
     filteredValidSalesData.forEach(row => {
-        // Extract values for all dimensions
         const parentVal = valueExtractors['parent'](row);
         const childVal = valueExtractors['child'](row);
         const manufacturerVal = valueExtractors['manufacturer'](row);
         const creatorVal = valueExtractors['creator'](row);
         const productVal = valueExtractors['product'](row);
 
-        // Collect unique values for UI filters
         parentGroupsForFilter.add(parentVal);
         childGroupsForFilter.add(childVal);
         manufacturersForFilter.add(manufacturerVal);
         creatorsForFilter.add(creatorVal);
         productsForFilter.add(productVal);
 
-        // --- Apply Filters ---
-        // If a filter array is not empty, and the current value is NOT in it, skip this row.
         if (filters.summaryTable.parent.length > 0 && !filters.summaryTable.parent.includes(parentVal)) return;
         if (filters.summaryTable.child.length > 0 && !filters.summaryTable.child.includes(childVal)) return;
         if (filters.summaryTable.manufacturer && filters.summaryTable.manufacturer.length > 0 && !filters.summaryTable.manufacturer.includes(manufacturerVal)) return;
         if (filters.summaryTable.creator && filters.summaryTable.creator.length > 0 && !filters.summaryTable.creator.includes(creatorVal)) return;
         if (filters.summaryTable.product && filters.summaryTable.product.length > 0 && !filters.summaryTable.product.includes(productVal)) return;
 
-        // --- Calculation ---
         const quantity = Number(getRowValue(row, COL.QUANTITY)) || 0;
         const price = Number(getRowValue(row, COL.PRICE)) || 0;
-        const revenue = price; // Revenue is 'Giá bán_1'
+        const revenue = price; 
         const maNganhHang = getRowValue(row, COL.MA_NGANH_HANG);
         const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
-        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig);
-        const revenueQD = revenue * heso;
+        const productName = getRowValue(row, COL.PRODUCT);
         
-        // Build the dynamic key path based on drilldownOrder
+        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig, productName);
+        const revenueQD = revenue * heso;
+
+        // Logic trọng số số lượng Vieon
+        const isVieon = childVal === 'Vieon' || parentVal === 'Vieon' || (productName || '').toString().includes('VieON');
+        const weightedQuantity = isVieon ? (quantity * heso) : quantity;
+        
         const keys: string[] = [];
         for (const levelKey of drilldownOrder) {
             if (valueExtractors[levelKey]) {
@@ -79,7 +78,6 @@ export function processSummaryTable(
             }
         }
 
-        // Construct the tree
         let currentNode: { [key: string]: SummaryTableNode } | undefined = summaryTableData;
         keys.forEach(key => {
             if (!currentNode) return;
@@ -92,7 +90,7 @@ export function processSummaryTable(
                     children: {} 
                 };
             }
-            currentNode[key].totalQuantity += quantity;
+            currentNode[key].totalQuantity += weightedQuantity;
             currentNode[key].totalRevenue += revenue;
             currentNode[key].totalRevenueQD += revenueQD;
             if (getHinhThucThanhToan(row) === 'tra_gop') {
@@ -127,10 +125,6 @@ export function processSummaryTable(
 }
 
 
-/**
- * Calculates a summary of metrics for each warehouse.
- * Refactored to compute dynamic metrics by industry and group.
- */
 export function calculateWarehouseSummary(
     allData: DataRow[],
     filters: FilterState,
@@ -189,49 +183,55 @@ export function calculateWarehouseSummary(
             const quantity = Number(getRowValue(row, COL.QUANTITY)) || 0;
             const maNganhHang = getRowValue(row, COL.MA_NGANH_HANG);
             const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
+            const productName = getRowValue(row, COL.PRODUCT);
             const customer = getRowValue(row, COL.CUSTOMER_NAME);
-            const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig);
-            const rowRevenue = price; // Doanh thu là giá trị của cột Giá bán_1
+            
+            const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig, productName);
+            const rowRevenue = price; 
             const rowRevenueQD = rowRevenue * heso;
+
+            // Trọng số Vieon
+            const industry = productConfig.childToParentMap[maNhomHang] || 'Khác';
+            const group = productConfig.childToSubgroupMap[maNhomHang] || 'Khác';
+            const isVieon = group === 'Vieon' || industry === 'Vieon' || (productName || '').toString().includes('VieON');
+            const weightedQuantity = isVieon ? (quantity * heso) : quantity;
 
             if (customer) summary.customers.add(customer);
             if (HINH_THUC_XUAT_TRA_GOP.has(getRowValue(row, COL.HINH_THUC_XUAT))) {
                 summary.doanhThuTraCham += rowRevenue;
             }
             
-            const industry = productConfig.childToParentMap[maNhomHang] || 'Khác';
-            const group = productConfig.childToSubgroupMap[maNhomHang] || 'Khác';
             const manufacturer = getRowValue(row, COL.MANUFACTURER) || 'Không rõ';
 
             // Aggregate by industry
             if (!summary.metrics.byIndustry[industry]) summary.metrics.byIndustry[industry] = initMetricValues();
-            summary.metrics.byIndustry[industry].quantity += quantity;
+            summary.metrics.byIndustry[industry].quantity += weightedQuantity;
             summary.metrics.byIndustry[industry].revenue += rowRevenue;
             summary.metrics.byIndustry[industry].revenueQD += rowRevenueQD;
 
             // Aggregate by group
             if (!summary.metrics.byGroup[group]) summary.metrics.byGroup[group] = initMetricValues();
-            summary.metrics.byGroup[group].quantity += quantity;
+            summary.metrics.byGroup[group].quantity += weightedQuantity;
             summary.metrics.byGroup[group].revenue += rowRevenue;
             summary.metrics.byGroup[group].revenueQD += rowRevenueQD;
 
             // Aggregate by manufacturer
             if (!summary.metrics.byManufacturer[manufacturer]) summary.metrics.byManufacturer[manufacturer] = initMetricValues();
-            summary.metrics.byManufacturer[manufacturer].quantity += quantity;
+            summary.metrics.byManufacturer[manufacturer].quantity += weightedQuantity;
             summary.metrics.byManufacturer[manufacturer].revenue += rowRevenue;
             summary.metrics.byManufacturer[manufacturer].revenueQD += rowRevenueQD;
 
             // Aggregate by industry and manufacturer
             if (!summary.metrics.byIndustryAndManufacturer[industry]) summary.metrics.byIndustryAndManufacturer[industry] = {};
             if (!summary.metrics.byIndustryAndManufacturer[industry][manufacturer]) summary.metrics.byIndustryAndManufacturer[industry][manufacturer] = initMetricValues();
-            summary.metrics.byIndustryAndManufacturer[industry][manufacturer].quantity += quantity;
+            summary.metrics.byIndustryAndManufacturer[industry][manufacturer].quantity += weightedQuantity;
             summary.metrics.byIndustryAndManufacturer[industry][manufacturer].revenue += rowRevenue;
             summary.metrics.byIndustryAndManufacturer[industry][manufacturer].revenueQD += rowRevenueQD;
 
             // Aggregate by group and manufacturer
             if (!summary.metrics.byGroupAndManufacturer[group]) summary.metrics.byGroupAndManufacturer[group] = {};
             if (!summary.metrics.byGroupAndManufacturer[group][manufacturer]) summary.metrics.byGroupAndManufacturer[group][manufacturer] = initMetricValues();
-            summary.metrics.byGroupAndManufacturer[group][manufacturer].quantity += quantity;
+            summary.metrics.byGroupAndManufacturer[group][manufacturer].quantity += weightedQuantity;
             summary.metrics.byGroupAndManufacturer[group][manufacturer].revenue += rowRevenue;
             summary.metrics.byGroupAndManufacturer[group][manufacturer].revenueQD += rowRevenueQD;
         }
@@ -242,7 +242,6 @@ export function calculateWarehouseSummary(
         .map(khoName => {
             const summary = summaryByKho[khoName];
             
-            // Calculate top-level aggregates from the dynamic metrics
             const totalMetrics = Object.values(summary.metrics.byIndustry as Record<string, MetricValues>)
                 .reduce((acc, metric) => {
                     acc.revenue += metric.revenue;

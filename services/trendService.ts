@@ -1,3 +1,4 @@
+
 import type { DataRow, TrendData, ProductConfig } from '../types';
 import { COL } from '../constants';
 import { getRowValue, getHeSoQuyDoi } from '../utils/dataUtils';
@@ -13,7 +14,9 @@ export function processTrendData(
         const price = Number(getRowValue(row, COL.PRICE)) || 0;
         const maNganhHang = getRowValue(row, COL.MA_NGANH_HANG);
         const maNhomHang = getRowValue(row, COL.MA_NHOM_HANG);
-        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig);
+        const productName = getRowValue(row, COL.PRODUCT);
+        
+        const heso = getHeSoQuyDoi(maNganhHang, maNhomHang, productConfig, productName);
         const revenue = price; // Doanh thu là giá trị của cột Giá bán_1
         const revenueQD = revenue * heso;
 

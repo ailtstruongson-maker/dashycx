@@ -1,3 +1,4 @@
+
 import type { DataRow, SummaryTableNode, ProductConfig } from '../types';
 import { COL, HINH_THUC_XUAT_THU_HO, HINH_THUC_XUAT_TIEN_MAT, HINH_THUC_XUAT_TRA_GOP } from '../constants';
 
@@ -66,7 +67,16 @@ export function formatQuantityWithFraction(value: number | null | undefined): st
 }
 
 
-export function getHeSoQuyDoi(maNganhHang: string, maNhomHang: string, productConfig: ProductConfig | null): number {
+export function getHeSoQuyDoi(maNganhHang: string, maNhomHang: string, productConfig: ProductConfig | null, productName?: string): number {
+    // 0. Logic đặc thù cho Vieon dựa trên tên sản phẩm (Ưu tiên cao nhất)
+    const name = (productName || '').toString();
+    if (name.includes('VieON VIP')) {
+        if (name.includes('01 tháng')) return 1;
+        if (name.includes('03 tháng')) return 2;
+        if (name.includes('06 tháng')) return 4;
+        return 1;
+    }
+
     const parentGroup = productConfig?.childToParentMap?.[maNhomHang];
 
     // Priority 1: Use parent group from config file for primary categories
@@ -86,8 +96,6 @@ export function getHeSoQuyDoi(maNganhHang: string, maNhomHang: string, productCo
             case 'CE': // Tivi, etc.
                 return 1.0;
             default:
-                // If the parent group is known but not in the switch, it might fall through to the old logic.
-                // This is a good safety net.
                 break;
         }
     }
@@ -95,7 +103,7 @@ export function getHeSoQuyDoi(maNganhHang: string, maNhomHang: string, productCo
     // Priority 2: Fallback to old logic for compatibility or items not in config
     if (maNganhHang && maNganhHang.includes('Thẻ cào')) return 1.0;
     if (maNganhHang === '164 - VAS' && (maNhomHang === '4479 - Dịch Vụ Bảo Hiểm' || maNhomHang === '4499 - Thu Hộ Phí Bảo Hiểm')) return 4.18;
-    if (maNganhHang === '304 - Điện tử' && maNhomHang === '880 - Loa Karaoke') return 1.29; // This is a special case not covered by parent groups
+    if (maNganhHang === '304 - Điện tử' && maNhomHang === '880 - Loa Karaoke') return 1.29;
     
     switch (maNganhHang) {
         case '664 - Sim Online': return 5.45;
@@ -105,7 +113,7 @@ export function getHeSoQuyDoi(maNganhHang: string, maNhomHang: string, productCo
         case '23 - Wearable':
         case '1274 - Đồng Hồ Thời Trang': return 3.0;
         case '364 - IT': return 2.0;
-        case '1034 - Dụng cụ nhà bếp': return 1.92; // Keeping this specific one
+        case '1034 - Dụng cụ nhà bếp': return 1.92;
         case '1116 - Máy lọc nước':
         case '484 - Điện gia dụng':
         case '1214 - Gia dụng lắp đặt': return 1.85;

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi" class="light">
 
@@ -9,6 +10,40 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#1e1b4b',
+                        },
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -16,29 +51,28 @@
     <!-- Google Charts -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     
-    <!-- SortableJS for drag-and-drop -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <script type="importmap">
-    {
-      "imports": {
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-        "react/": "https://aistudiocdn.com/react@^19.2.0/",
-        "react": "https://aistudiocdn.com/react@^19.2.0",
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-        "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5"
-      }
-    }
-    </script>
-    
-    <!-- Custom Styles are now imported via index.tsx -> styles.css -->
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
+    "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5",
+    "svelte": "https://esm.sh/svelte@^5.0.0",
+    "svelte/": "https://esm.sh/svelte@^5.0.0/",
+    "chart.js": "https://esm.sh/chart.js@^4.4.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3"
+  }
+}
+</script>
+    <link rel="stylesheet" href="./styles.css">
 </head>
 
-<body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-500 relative min-h-screen">
+<body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-500 relative min-h-screen antialiased text-slate-900 dark:text-slate-100">
     <!-- Global Background Effects -->
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
         <!-- Grid Pattern -->
@@ -52,7 +86,7 @@
     </div>
 
     <div id="root" class="relative z-10"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="./main.ts"></script>
 </body>
 
 </html>
