@@ -52,10 +52,8 @@ export const useDashboardLogic = () => {
     const [employeeAnalysisData, setEmployeeAnalysisData] = useState<ProcessedData['employeeData'] | null>(null);
     const [configUrl, setConfigUrl] = useState('https://docs.google.com/spreadsheets/d/e/2PACX-1vRhes_lcas8n2_xYHKylsjyD3PIVbdchCiL2XDKJ4OYfgUZlVjAT7ZGWDHrYRzQVrK2w50W86Da3l48/pub?output=csv');
     
-    // Feature flags
     const [isDeduplicationEnabled, setIsDeduplicationEnabled] = useState(false);
 
-    // Initialize filter state from localStorage
     const [filterState, setFilterState] = useState<FilterState>(() => {
         let initialState = { ...initialFilterState };
         try {
@@ -64,7 +62,6 @@ export const useDashboardLogic = () => {
                 const industryGrid = JSON.parse(savedGridFilters);
                 initialState.industryGrid = { ...initialState.industryGrid, ...industryGrid };
             }
-            
             const savedSummaryFilters = localStorage.getItem('summaryTableFilters');
             if (savedSummaryFilters) {
                 const summaryTable = JSON.parse(savedSummaryFilters);
@@ -86,13 +83,11 @@ export const useDashboardLogic = () => {
     const [isAiResponding, setIsAiResponding] = useState(false);
     const chatSession = useRef<Chat | null>(null);
 
-    // Initial Data Loading Effect
     useEffect(() => {
         const loadInitialData = async () => {
             setAppState('loading');
             setIsProcessing(true);
             try {
-                // Load Settings
                 const dedupeSetting = await getDeduplicationSetting();
                 setIsDeduplicationEnabled(dedupeSetting);
 
@@ -123,12 +118,9 @@ export const useDashboardLogic = () => {
                     setAppState('dashboard');
                     setIsProcessing(true);
 
-
-                    // Silently check for config updates
                     try {
                         const latestConfig = await loadConfigFromSheet(configUrl, () => {});
                         if (JSON.stringify(config) !== JSON.stringify(latestConfig)) {
-                            console.log("Phát hiện cấu hình mới, đang tự động cập nhật...");
                             await saveProductConfig(latestConfig, configUrl);
                             setProductConfig(latestConfig);
                         }
@@ -151,13 +143,11 @@ export const useDashboardLogic = () => {
         loadInitialData();
     }, [configUrl]);
 
-    // Handle Deduplication Toggle
     const handleDeduplicationChange = async (enabled: boolean) => {
         setIsDeduplicationEnabled(enabled);
         await saveDeduplicationSetting(enabled);
     };
 
-    // Filter Options Setup Effect
     useEffect(() => {
         if (originalData.length > 0) {
             const khoOptions = [...new Set(originalData.map(r => getRowValue(r, COL.KHO)).filter(Boolean).map(String))];
@@ -191,22 +181,18 @@ export const useDashboardLogic = () => {
         });
     }, []);
 
-    // Central Data Processing Effect
     useEffect(() => {
         if (appState !== 'dashboard' || !originalData.length || !productConfig) return;
 
         setIsProcessing(true);
         const timer = setTimeout(() => {
             try {
-                // Main data processing respects all filters
                 const { processedData: result, baseFilteredData: newBaseData } = applyFiltersAndProcess(originalData, productConfig, filterState, departmentMap);
                 setProcessedData(result);
                 setBaseFilteredData(newBaseData);
                 
-                // For Employee Analysis, we need a version that is NOT filtered by the employee department dropdown
-                // so that we can show all employees within the tabs for comparison, then filter visually.
                 if (departmentMap) {
-                    const employeeFilterState = { ...filterState, department: [] }; // Reset department filter for this calculation
+                    const employeeFilterState = { ...filterState, department: [] };
                     const { processedData: employeeResult } = applyFiltersAndProcess(originalData, productConfig, employeeFilterState, departmentMap);
                     setEmployeeAnalysisData(employeeResult.employeeData);
                 } else {
@@ -224,7 +210,6 @@ export const useDashboardLogic = () => {
         return () => clearTimeout(timer);
     }, [appState, originalData, productConfig, filterState, departmentMap]);
     
-    // Reset Chat Session Effect
     useEffect(() => {
         chatSession.current = null;
         setChatHistory([]);
@@ -280,9 +265,9 @@ export const useDashboardLogic = () => {
     
         setIsExporting(true);
         const originalKho = filterState.kho;
+        const khosToExport = uniqueFilterOptions.kho.filter(k => k && k !== 'all');
     
         try {
-            const khosToExport = uniqueFilterOptions.kho.filter(k => k && k !== 'all');
             const overviewElement = document.getElementById('business-overview');
             const warehouseElement = document.getElementById('warehouse-summary-view');
 
@@ -291,25 +276,28 @@ export const useDashboardLogic = () => {
             }
     
             for (const kho of khosToExport) {
+                // 1. Cập nhật filter và đợi React render
                 handleFilterChange({ kho });
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                // Đợi lâu hơn một chút để các biểu đồ Google Charts kịp vẽ lại (async)
+                await new Promise(resolve => setTimeout(resolve, 1800));
     
+                // 2. Highlight dòng trong bảng kho
                 let rowToHighlight: Element | null = warehouseElement.querySelector(`tr[data-kho-id="${kho}"]`);
                 if (rowToHighlight) {
                     rowToHighlight.classList.add('is-highlighted-for-export');
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 200)); // Short delay for highlight to render
+                await new Promise(resolve => setTimeout(resolve, 200));
 
-                // Export #1: Business Overview
+                // 3. Xuất ảnh #1: Tổng Quan (Snapshopt đầy đủ KPI, Lưới Ngành, Phân Tích NV)
                 await exportElementAsImage(overviewElement, `tong-quan-kinh-doanh-${kho}.png`, {
                     elementsToHide: ['.hide-on-export'],
                     captureAsDisplayed: false,
                     isCompactTable: true,
-                    forcedWidth: 700,
+                    forcedWidth: 720, 
                 });
 
-                // Export #2: Warehouse Summary
+                // 4. Xuất ảnh #2: Báo Cáo Kho (Chi tiết dòng kho đó trong bảng tổng hợp)
                 await exportElementAsImage(warehouseElement, `bao-cao-kho-${kho}.png`, {
                     elementsToHide: ['.hide-on-export'],
                     captureAsDisplayed: true,
@@ -360,21 +348,16 @@ export const useDashboardLogic = () => {
         setIsProcessing(true);
         setStatus({ message: `Đang xử lý ${files.length} file phân ca...`, type: 'info', progress: 20 });
         try {
-            // Optimized: Parallel Processing
             const processPromises = files.map(async (file, index) => {
                 const result = await processShiftFile(file);
-                // Update progress approximately
                 setStatus(prev => ({ ...prev, progress: 20 + (60 * (index + 1) / files.length) }));
                 return result.map;
             });
-
             const results = await Promise.all(processPromises);
-            
             let mergedMap: DepartmentMap = (await getDepartmentMap()) || {};
             results.forEach(map => {
                 mergedMap = { ...mergedMap, ...map };
             });
-            
             await saveDepartmentMap(mergedMap);
             setDepartmentMap(mergedMap);
             setStatus({ message: `Đã xử lý xong ${files.length} file phân ca!`, type: 'success', progress: 100 });
@@ -394,7 +377,7 @@ export const useDashboardLogic = () => {
         setStatus({ message: 'Khởi tạo tác vụ nền...', type: 'info', progress: 0 });
     
         if (!window.Worker) {
-            setStatus({ message: 'Trình duyệt của bạn không hỗ trợ xử lý nền (Web Workers).', type: 'error', progress: 0 });
+            setStatus({ message: 'Trình duyệt không hỗ trợ Web Worker.', type: 'error', progress: 0 });
             setAppState('upload');
             setIsProcessing(false);
             return;
@@ -402,244 +385,94 @@ export const useDashboardLogic = () => {
     
         const workerCode = `
             importScripts('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-
-            // --- Start of Utilities ---
-            // Define all columns needed by the application to strip excess data
             const REQUIRED_COLS = new Set([
-                'Mã Đơn Hàng', 'Mã đơn hàng',
-                'Tên Sản Phẩm', 'Tên sản phẩm',
-                'Tên Khách Hàng', 'Tên khách hàng',
-                'Số Lượng', 'Số lượng',
-                'Giá bán_1',
-                'Giá bán',
-                'Mã kho tạo',
-                'Trạng thái hồ sơ',
-                'Người tạo',
-                'Trạng thái xuất',
-                'Ngày tạo',
-                'Hình thức xuất',
-                'Tình trạng nhập trả của sản phẩm đổi với sản phẩm chính',
-                'Trạng thái thu tiền',
-                'Trạng thái hủy',
-                'Ngành Hàng', 'Ngành hàng',
-                'Nhóm Hàng', 'Nhóm hàng',
-                'Nhà sản xuất', 'Hãng',
-                'TG Hẹn Giao' // Needed for unshipped orders detail
+                'Mã Đơn Hàng', 'Mã đơn hàng', 'Tên Sản Phẩm', 'Tên sản phẩm', 'Tên Khách Hàng', 'Tên khách hàng',
+                'Số Lượng', 'Số lượng', 'Giá bán_1', 'Giá bán', 'Mã kho tạo', 'Trạng thái hồ sơ', 'Người tạo',
+                'Trạng thái xuất', 'Ngày tạo', 'Hình thức xuất', 'Tình trạng nhập trả của sản phẩm đổi với sản phẩm chính',
+                'Trạng thái thu tiền', 'Trạng thái hủy', 'Ngành Hàng', 'Ngành hàng', 'Nhóm Hàng', 'Nhóm hàng',
+                'Nhà sản xuất', 'Hãng', 'TG Hẹn Giao'
             ]);
-
-            const COL_WORKER = {
-                DATE_CREATED: ['Ngày tạo'],
-                TRANG_THAI_HUY: ['Trạng thái hủy'],
-                TINH_TRANG_NHAP_TRA: ['Tình trạng nhập trả của sản phẩm đổi với sản phẩm chính'],
-                TRANG_THAI_THU_TIEN: ['Trạng thái thu tiền'],
-            };
-
-            function getRowValue(row, keys) {
-                for (const key of keys) {
-                    if (row[key] !== undefined && row[key] !== null) return row[key];
-                }
-                return undefined;
-            }
-
-            function parseExcelDate(excelDate) {
-                if (excelDate instanceof Date && !isNaN(excelDate.getTime())) return excelDate;
-                if (typeof excelDate === 'number') {
-                    return new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-                }
-                if (typeof excelDate === 'string') {
-                    const date = new Date(excelDate);
-                    if (!isNaN(date.getTime())) return date;
-                }
-                return null;
-            }
-
-            function isValidSale(row) {
-                const getString = (keys) => (getRowValue(row, keys) || '').toString().trim().toLowerCase();
-                
-                return getString(COL_WORKER.TRANG_THAI_HUY) === 'chưa hủy' &&
-                       getString(COL_WORKER.TINH_TRANG_NHAP_TRA) === 'chưa trả' &&
-                       getString(COL_WORKER.TRANG_THAI_THU_TIEN) === 'đã thu';
-            }
-            // --- End of Utilities ---
-
-            self.onmessage = (event) => {
-                const { file, enableDeduplication } = event.data;
-                processFileInWorker(file, enableDeduplication);
-            };
-
+            const COL_WORKER = { DATE_CREATED: ['Ngày tạo'], TRANG_THAI_HUY: ['Trạng thái hủy'], TINH_TRANG_NHAP_TRA: ['Tình trạng nhập trả của sản phẩm đổi với sản phẩm chính'], TRANG_THAI_THU_TIEN: ['Trạng thái thu tiền'] };
+            function getRowValue(row, keys) { for (const key of keys) { if (row[key] !== undefined && row[key] !== null) return row[key]; } return undefined; }
+            function parseExcelDate(excelDate) { if (excelDate instanceof Date && !isNaN(excelDate.getTime())) return excelDate; if (typeof excelDate === 'number') { return new Date(Math.round((excelDate - 25569) * 86400 * 1000)); } if (typeof excelDate === 'string') { const date = new Date(excelDate); if (!isNaN(date.getTime())) return date; } return null; }
+            function isValidSale(row) { const getString = (keys) => (getRowValue(row, keys) || '').toString().trim().toLowerCase(); return getString(COL_WORKER.TRANG_THAI_HUY) === 'chưa hủy' && getString(COL_WORKER.TINH_TRANG_NHAP_TRA) === 'chưa trả' && getString(COL_WORKER.TRANG_THAI_THU_TIEN) === 'đã thu'; }
+            self.onmessage = (event) => { const { file, enableDeduplication } = event.data; processFileInWorker(file, enableDeduplication); };
             async function processFileInWorker(file, enableDeduplication) {
                 const postStatus = (status) => self.postMessage({ type: 'progress', payload: status });
-                // Helper to pause execution
-                const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
                 try {
                     postStatus({ message: 'Đang đọc file (nền)...', type: 'info', progress: 0 });
                     const arrayBuffer = await file.arrayBuffer();
-
                     postStatus({ message: 'Đang phân tích dữ liệu (nền)...', type: 'info', progress: 25 });
                     const data = new Uint8Array(arrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-
-                    postStatus({ message: 'Đang chuyển đổi dữ liệu (nền)...', type: 'info', progress: 50 });
-                    const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-                    
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
                     let deduplicatedData = json;
-
                     if (enableDeduplication) {
-                        postStatus({ message: 'Đang loại bỏ dữ liệu trùng lặp (nền)...', type: 'info', progress: 65 });
-                        // Artificial delay to ensure user sees the message
-                        await sleep(600);
-                        
-                        // Optimized Deduplication: Use destructuring instead of sorting keys
-                        const uniqueRowKeys = new Set();
-                        deduplicatedData = [];
-                        
-                        const getRowKey = (row) => {
-                            // Extract STT_1 out, keep the rest for key generation
-                            const { STT_1, ...rest } = row;
-                            return JSON.stringify(rest);
-                        };
-
+                        postStatus({ message: 'Đang xóa trùng (nền)...', type: 'info', progress: 65 });
+                        const uniqueRowKeys = new Set(); deduplicatedData = [];
                         for (let i = 0; i < json.length; i++) {
-                            const row = json[i];
-                            const rowKey = getRowKey(row);
-                            if (!uniqueRowKeys.has(rowKey)) {
-                                uniqueRowKeys.add(rowKey);
-                                deduplicatedData.push(row);
-                            }
+                            const { STT_1, ...rest } = json[i]; const rowKey = JSON.stringify(rest);
+                            if (!uniqueRowKeys.has(rowKey)) { uniqueRowKeys.add(rowKey); deduplicatedData.push(json[i]); }
                         }
-                        
-                        // Optional: Clear set to free memory immediately
-                        uniqueRowKeys.clear();
-                    } else {
-                        // Display a neutral message so the progress bar updates without claiming to delete
-                        postStatus({ message: 'Bỏ qua bước xóa trùng...', type: 'info', progress: 65 });
-                        // Also add a small delay for consistency
-                        await sleep(400);
                     }
-
-                    postStatus({ message: 'Đang tối ưu & làm sạch dữ liệu (Data Diet)...', type: 'info', progress: 70 });
-                    
+                    postStatus({ message: 'Tối ưu dữ liệu (Data Diet)...', type: 'info', progress: 70 });
                     const processedData = [];
-                    // Single pass to filter validity, trim columns, and parse dates
                     for (let i = 0; i < deduplicatedData.length; i++) {
                         const row = deduplicatedData[i];
                         if (isValidSale(row)) {
-                            const slimRow = {};
-                            const rowParsedDate = parseExcelDate(getRowValue(row, COL_WORKER.DATE_CREATED));
-                            
-                            // Check valid date immediately
-                            if (rowParsedDate && !isNaN(rowParsedDate.getTime())) {
-                                // Only keep required columns
-                                for (const key in row) {
-                                    if (REQUIRED_COLS.has(key)) {
-                                        slimRow[key] = row[key];
-                                    }
-                                }
-                                slimRow.parsedDate = rowParsedDate;
-                                processedData.push(slimRow);
+                            const slimRow = {}; const rowDate = parseExcelDate(getRowValue(row, COL_WORKER.DATE_CREATED));
+                            if (rowDate && !isNaN(rowDate.getTime())) {
+                                for (const key in row) { if (REQUIRED_COLS.has(key)) slimRow[key] = row[key]; }
+                                slimRow.parsedDate = rowDate; processedData.push(slimRow);
                             }
                         }
                     }
-
-                    postStatus({ message: 'Hoàn tất xử lý dữ liệu...', type: 'info', progress: 90 });
-
-                    if (processedData.length === 0) {
-                        throw new Error("Không tìm thấy dữ liệu hợp lệ. Vui lòng kiểm tra lại file hoặc các điều kiện lọc.");
-                    }
-
+                    if (processedData.length === 0) throw new Error("Không tìm thấy dữ liệu hợp lệ.");
                     self.postMessage({ type: 'result', payload: processedData });
-
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : "Lỗi không xác định khi xử lý file";
-                    self.postMessage({ type: 'error', payload: 'Lỗi: ' + errorMessage });
-                }
+                } catch (error) { self.postMessage({ type: 'error', payload: 'Lỗi: ' + error.message }); }
             }
         `;
     
         const blob = new Blob([workerCode], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(blob);
         const worker = new Worker(workerUrl);
+        const cleanup = () => { worker.terminate(); URL.revokeObjectURL(workerUrl); };
     
-        const cleanup = () => {
-            worker.terminate();
-            URL.revokeObjectURL(workerUrl);
-        };
-    
-        worker.onmessage = async (e: MessageEvent<{ type: string, payload: any }>) => {
+        worker.onmessage = async (e) => {
             const { type, payload } = e.data;
-    
-            if (type === 'progress') {
-                setStatus(payload);
-            } else if (type === 'result') {
-                const data = payload as DataRow[];
+            if (type === 'progress') setStatus(payload);
+            else if (type === 'result') {
                 setStatus({ message: 'Đang lưu dữ liệu...', type: 'info', progress: 95 });
-                
-                // Allow UI to breathe before heavy IndexedDB op
-                await new Promise(r => setTimeout(r, 50));
-                
-                await saveSalesData(data, file.name);
+                await saveSalesData(payload, file.name);
                 setFileInfo({ filename: file.name, savedAt: new Date().toLocaleString('vi-VN') });
-                
-                // Update state in batches if possible, or just accept the hit here
-                setOriginalData(data);
-                
-                setStatus({ message: 'Đang tổng hợp báo cáo...', type: 'info', progress: 98 });
+                setOriginalData(payload);
                 setAppState('dashboard');
                 cleanup();
             } else if (type === 'error') {
                 setStatus({ message: payload, type: 'error', progress: 0 });
-                setAppState('upload');
-                setIsProcessing(false);
-                cleanup();
+                setAppState('upload'); setIsProcessing(false); cleanup();
             }
         };
-    
-        worker.onerror = (e) => {
-            console.error('Lỗi Worker:', e);
-            setStatus({ message: `Lỗi tác vụ nền: ${e.message}`, type: 'error', progress: 0 });
-            setAppState('upload');
-            setIsProcessing(false);
-            cleanup();
-        };
-    
-        // Pass both file and the feature flag
         worker.postMessage({ file, enableDeduplication: isDeduplicationEnabled });
     };
 
     const handleSendMessage = useCallback(async (message: string) => {
         if (!processedData) return;
-        
         setIsAiResponding(true);
         setChatHistory(prev => [...prev, { role: 'user', content: message }]);
-
-        if (!chatSession.current) {
-            chatSession.current = createChatSession(processedData);
-        }
-
+        if (!chatSession.current) chatSession.current = createChatSession(processedData);
         try {
             const result = await chatSession.current.sendMessage({ message });
             setChatHistory(prev => [...prev, { role: 'model', content: result.text }]);
         } catch (error) {
-            console.error("AI chat error:", error);
-            setChatHistory(prev => [...prev, { role: 'model', content: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại." }]);
-        } finally {
-            setIsAiResponding(false);
-        }
+            setChatHistory(prev => [...prev, { role: 'model', content: "Xin lỗi, đã có lỗi xảy ra." }]);
+        } finally { setIsAiResponding(false); }
     }, [processedData]);
-
-    const openUnshippedModal = () => setActiveModal('unshipped');
 
     const handleExport = async (element: HTMLElement | null, filename: string, options: any = {}) => {
         if (element) {
             setIsExporting(true);
-            const exportOptions = {
-                elementsToHide: ['.hide-on-export'],
-                ...options
-            };
-            await exportElementAsImage(element, filename, exportOptions);
+            await exportElementAsImage(element, filename, { elementsToHide: ['.hide-on-export'], ...options });
             setIsExporting(false);
         }
     };
@@ -652,10 +485,8 @@ export const useDashboardLogic = () => {
         activeModal, setActiveModal, modalData,
         isChatOpen, setIsChatOpen, chatHistory, isAiResponding,
         handleClearDepartments, handleClearData, handleShiftFileProcessing, handleFileProcessing,
-        handleSendMessage, openPerformanceModal, openUnshippedModal, handleExport,
-        handleBatchExport,
-        handleBatchKhoExport,
-        isDeduplicationEnabled,
-        handleDeduplicationChange
+        handleSendMessage, openPerformanceModal, openUnshippedModal: () => setActiveModal('unshipped'), handleExport,
+        handleBatchExport, handleBatchKhoExport,
+        isDeduplicationEnabled, handleDeduplicationChange
     };
 };

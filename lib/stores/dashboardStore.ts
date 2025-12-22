@@ -1,14 +1,15 @@
 
-
 import { writable, derived } from 'svelte/store';
 import type { AppState, DataRow, FilterState, ProcessedData, ProductConfig } from '../types';
 
 /**
+ * Điều hướng module chính
+ */
+export type ViewType = 'dashboard' | 'tax' | 'coupon' | 'shift' | 'efficiency' | 'checklist';
+export const currentView = writable<ViewType>('dashboard');
+
+/**
  * Trạng thái điều hướng của ứng dụng
- * upload: Màn hình chào mừng & tải file
- * loading: Đang đọc file từ ổ đĩa
- * processing: Đang tính toán dữ liệu
- * dashboard: Hiển thị kết quả
  */
 export const appState = writable<AppState>('upload');
 
@@ -20,7 +21,7 @@ export const originalData = writable<DataRow[]>([]);
 /**
  * Cấu hình ngành hàng và hệ số quy đổi
  */
-export const productConfig = writable<ProductConfig | null>(null);
+export const productConfig = writable<Record<string, number> | null>(null);
 
 /**
  * Bản đồ ánh xạ Mã nhân viên -> Bộ phận (từ file Phân ca)
@@ -101,7 +102,6 @@ export const uniqueFilters = derived([originalData, departmentMap], ([$data, $de
     });
 
     const deptOptions = Array.from(new Set(Object.values($deptMap)))
-        // FIX: Cast d to string or use String() to avoid toLowerCase() property missing on unknown error
         .filter(d => d && !['quản lý', 'trưởng ca', 'kế toán'].some(k => String(d).toLowerCase().includes(k)))
         .sort();
 
@@ -114,7 +114,6 @@ export const uniqueFilters = derived([originalData, departmentMap], ([$data, $de
 });
 
 /**
- * Dữ liệu đã qua tính toán (KPIs, Trends, Employees)
- * Store này sẽ được cập nhật bởi các Service ở các bước sau
+ * Dữ liệu đã qua tính toán
  */
 export const processedData = writable<ProcessedData | null>(null);

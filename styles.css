@@ -24,55 +24,42 @@ body {
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.5);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(255,255,255,0.2) inset;
-    border-radius: 1rem; /* Rounded-xl by default */
+    border-radius: 1rem;
 }
 
 .dark .chart-card {
-    background-color: rgba(30, 41, 59, 0.7); /* slate-800 with opacity */
-    border-color: rgba(51, 65, 85, 0.5); /* slate-700 with opacity */
+    background-color: rgba(30, 41, 59, 0.7);
+    border-color: rgba(51, 65, 85, 0.5);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255,255,255,0.05) inset;
 }
 
-/* Remove default background from App.tsx main container to let global background show */
-#root > div {
-    background-color: transparent !important; 
-}
-
-/* --- EXPORT OVERRIDES (CRITICAL) --- */
-/* Khi xuất ảnh (html2canvas), tắt hiệu ứng trong suốt để ảnh rõ nét và không bị lỗi background */
+/* --- EXPORT OVERRIDES --- */
 body.is-capturing .chart-card {
     background-color: white !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border: 1px solid #e5e7eb !important;
-    border-radius: 0 !important; /* Vuông vức hơn cho báo cáo chuyên nghiệp */
+    border-radius: 0 !important;
 }
 .dark body.is-capturing .chart-card {
-    background-color: #1f2937 !important; /* slate-800 */
+    background-color: #1f2937 !important;
     border-color: #374151 !important;
 }
 
-/* Background Patterns & Animations from Landing Page */
 .bg-grid-pattern {
-    background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
 }
 .dark .bg-grid-pattern {
-    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
-.animate-blob {
-    animation: blob 7s infinite;
-}
-.animation-delay-2000 {
-    animation-delay: 2s;
-}
-.animation-delay-4000 {
-    animation-delay: 4s;
-}
+.animate-blob { animation: blob 7s infinite; }
+.animation-delay-2000 { animation-delay: 2s; }
+.animation-delay-4000 { animation-delay: 4s; }
 @keyframes blob {
     0% { transform: translate(0px, 0px) scale(1); }
     33% { transform: translate(30px, -50px) scale(1.1); }
@@ -80,38 +67,25 @@ body.is-capturing .chart-card {
     100% { transform: translate(0px, 0px) scale(1); }
 }
 
-/* --- Other Existing Styles --- */
-
-.drop-zone { border: 2px dashed #d1d5db; transition: background-color 0.2s, border-color 0.2s; }
-.dark .drop-zone { border-color: #4b5563; }
-.drop-zone--over { background-color: #eff6ff; border-color: #3b82f6; }
-.dark .drop-zone--over { background-color: rgba(59, 130, 246, 0.1); border-color: #60a5fa; }
-.drop-zone__input { display: none; }
-
-.performance-table .sortable-header { cursor: pointer; user-select: none; }
-.performance-table .sortable-header .sort-icon { opacity: 0.3; transition: opacity 0.2s; margin-left: 4px; }
-.performance-table .sortable-header:hover .sort-icon, .performance-table .sortable-header.active .sort-icon { opacity: 1; }
-
-#summary-table tr.expanded .toggle-icon, tr.expanded .toggle-icon { transform: rotate(90deg); }
-#summary-table tr .toggle-icon, tr .toggle-icon { transition: transform 0.2s ease-in-out; }
-
-details[open] > summary .accordion-icon { transform: rotate(180deg); }
-summary::-webkit-details-marker { display: none; }
-
 .modal-overlay { animation: fadeIn 0.3s ease-out forwards; backdrop-filter: blur(4px); }
 .modal-content { animation: slideInUp 0.3s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideInUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-@keyframes fade-in-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Scrollbar Custom */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
 }
-.animate-fade-in-up {
-    animation: fade-in-up 0.2s ease-out forwards;
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
 }
-
-body.is-capturing .hide-on-export, .is-capturing .hide-on-export { display: none !important; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 10px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.1);
+}
 
 .pong-loader { position: relative; width: 100px; height: 60px; }
 .pong-ball { position: absolute; width: 10px; height: 10px; background: #fff; border-radius: 50%; animation: pong-ball-anim 1.5s infinite linear; }
@@ -125,102 +99,12 @@ body.is-capturing .hide-on-export, .is-capturing .hide-on-export { display: none
     75% { left: 85px; top: 50px; animation-timing-function: ease-in; }
 }
 
-.debug-panel { position: fixed; bottom: 20px; right: 20px; width: 400px; max-height: 60vh; background-color: white; border: 1px solid #ccc; box-shadow: 0 0 15px rgba(0,0,0,0.2); z-index: 10000; display: flex; flex-direction: column; border-radius: 8px; }
-.dark .debug-panel { background-color: #1f2937; border-color: #4b5563; }
-.debug-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eee; }
-.dark .debug-panel-header { border-bottom-color: #374151; }
-.debug-panel-body { padding: 16px; overflow-y: auto; }
-body.inspector-active [data-debug-id]:hover { outline: 2px dashed #f43f5e; box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.3); cursor: crosshair; }
+/* Animations */
+.animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.compact-export-table .allow-wrap { white-space: normal; word-break: break-word; min-width: 200px; }
-.filter-dropdown-panel { max-height: 250px; overflow-y: auto; }
-
-.segmented-control button.active { background-color: #4f46e5; color: white; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
-.dark .segmented-control button.active { background-color: #6366f1; }
-
-.filter-pill.active { background-color: #3b82f6; color: white; border-color: #3b82f6; }
-.table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-body.is-capturing .table-container { overflow-x: visible; }
-
-/* Progress Bar Scanner Effect */
-.progress-bar-container {
-    position: relative;
-    overflow: hidden;
-    background-color: #e5e7eb; /* bg-slate-200 */
-}
-.dark .progress-bar-container {
-    background-color: #374151; /* dark:bg-slate-700 */
-}
-.progress-bar-container.scanner::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    background-image: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.4) 50%,
-        rgba(255, 255, 255, 0) 100%
-    );
-    transform: translateX(-100%);
-    animation: scanner-effect 2s infinite linear;
-}
-.dark .progress-bar-container.scanner::after {
-    background-image: linear-gradient(
-        90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.1) 50%,
-        rgba(255, 255, 255, 0) 100%
-    );
-}
-
-/* Compact layout styles for Business Overview export */
-body.is-capturing .kpi-grid-for-export {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-}
-body.is-capturing .industry-cards-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-}
-body.is-capturing .industry-card-progress {
-    display: none !important;
-}
-body.is-capturing .industry-card-footer {
-    display: flex;
-    justify-content: center;
-    align-items: baseline;
-    gap: 4px;
-    margin-top: 4px;
-}
-body.is-capturing .industry-card-progress-text {
-    margin-top: 0 !important;
-}
-
-/* Highlighting for batch export by warehouse */
-body.is-capturing tr.is-highlighted-for-export > * {
-    background-color: #fef9c3 !important; /* yellow-100 */
-    color: #78350f !important; /* amber-900 for high contrast */
-}
-.dark body.is-capturing tr.is-highlighted-for-export > * {
-    background-color: #422006 !important; /* A dark yellow/orange */
-    color: #fde68a !important; /* amber-200 for high contrast */
-}
-/* Ensure child elements like spans with their own colors also get overridden */
-body.is-capturing tr.is-highlighted-for-export > * span,
-body.is-capturing tr.is-highlighted-for-export > * p {
-    color: inherit !important;
-}
-
-body.is-capturing tr.is-highlighted-for-export {
-    outline: 2px solid #f59e0b !important; /* amber-500 */
-    outline-offset: -2px;
-}
-.dark body.is-capturing tr.is-highlighted-for-export {
-    outline-color: #fcd34d !important; /* amber-300 */
-}
-
-@keyframes scanner-effect {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+.animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+@keyframes fadeInUp { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
 }

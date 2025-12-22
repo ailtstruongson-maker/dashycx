@@ -2,8 +2,8 @@ import { GoogleGenAI, Chat } from "@google/genai";
 import type { ProcessedData, Employee, KpiData, TrendData, EmployeeData, ExploitationData, AnalysisRecord } from '../types';
 
 // Initialize the AI client once.
-// Ensure API_KEY is set in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// Fix: Always use const ai = new GoogleGenAI({apiKey: process.env.API_KEY});
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Creates and initializes a new chat session with the Gemini model.
@@ -45,7 +45,8 @@ IMPORTANT: You MUST answer all questions and follow all instructions in Vietname
     ];
 
     return ai.chats.create({
-        model: 'gemini-2.5-flash',
+        // Fix: Use correct model name from guidelines
+        model: 'gemini-3-flash-preview',
         config: { systemInstruction },
         history: initialHistory,
     });
@@ -62,10 +63,12 @@ export async function getKpiSummary(kpis: KpiData): Promise<string> {
     
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            // Fix: Use correct model name from guidelines
+            model: 'gemini-3-flash-preview',
             contents: prompt,
         });
-        return response.text;
+        // Fix: Access .text property directly
+        return response.text || "Không thể tạo nhận xét.";
     } catch (error) {
         console.error("AI KPI Summary error:", error);
         return "Không thể tạo nhận xét tự động vào lúc này.";
@@ -86,10 +89,12 @@ export async function getTrendAnalysis(trendData: TrendData, view: string): Prom
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            // Fix: Use correct model name from guidelines
+            model: 'gemini-3-flash-preview',
             contents: prompt,
         });
-        return response.text;
+        // Fix: Access .text property directly
+        return response.text || "Không thể phân tích dữ liệu.";
     } catch (error) {
         console.error("AI Trend Analysis error:", error);
         return "Không thể phân tích xu hướng vào lúc này.";
@@ -117,10 +122,12 @@ export async function getEmployeeSuggestion(employee: Employee): Promise<string>
     
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            // Fix: Use correct model name from guidelines
+            model: 'gemini-3-flash-preview',
             contents: prompt,
         });
-        return response.text;
+        // Fix: Access .text property directly
+        return response.text || "Không có gợi ý.";
     } catch (error) {
         console.error("AI Employee Suggestion error:", error);
         return "Lỗi khi tạo gợi ý.";
@@ -223,8 +230,8 @@ Hãy phân tích theo các quy tắc sau:
     prompt += `
 **6. Cảnh báo cuối cùng (Bắt buộc):**
 - Liệt kê 2 danh sách cảnh báo riêng biệt, rõ ràng ở cuối cùng.
-- Danh sách 1: "Cảnh báo 5 bạn DTQĐ thấp nhất: ${bottom5_DTQD.map(e => `@${e.id}`).join(', ')}.".
-- Danh sách 2: "Cảnh báo 5 bạn HQQĐ thấp nhất: ${bottom5_HQQD.map(e => `@${e.id}`).join(', ')}.".
+- Danh sách 1: "Cảnh báo 5 bạn DTQĐ thấp nhất: ${bottom5_DTQD.map(e => `@${id}`).join(', ')}.".
+- Danh sách 2: "Cảnh báo 5 bạn HQQĐ thấp nhất: ${bottom5_HQQD.map(e => `@${id}`).join(', ')}.".
 `;
 
     if (isLateNight) {
@@ -235,8 +242,10 @@ Hãy phân tích theo các quy tắc sau:
     }
     
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return response.text;
+        // Fix: Use correct model name from guidelines
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Fix: Access .text property directly
+        return response.text || "AI không tạo được nhận xét.";
     } catch (error) {
         console.error("AI Top Seller Analysis error:", error);
         return "Không thể tạo phân tích vào lúc này.";
@@ -256,8 +265,10 @@ export async function getPerformanceTableAnalysis(employeeData: EmployeeData): P
     3. Nhân viên nào có chỉ số Tiếp cận (slTiepCan) cao nhất và nó có tương quan với doanh thu không?`;
 
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return response.text;
+        // Fix: Use correct model name from guidelines
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Fix: Access .text property directly
+        return response.text || "Không có phản hồi từ AI.";
     } catch (error) {
         console.error("AI Performance Table Analysis error:", error);
         return "Không thể tạo phân tích vào lúc này.";
@@ -283,8 +294,10 @@ export async function getIndustryAnalysis(exploitationData: ExploitationData[]):
     3. Có ai yếu kém rõ rệt ở các mảng bán kèm (Sim, Đồng hồ) không?`;
 
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return response.text;
+        // Fix: Use correct model name from guidelines
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Fix: Access .text property directly
+        return response.text || "AI không thể phân tích ngành hàng.";
     } catch (error) {
         console.error("AI Industry Analysis error:", error);
         return "Không thể tạo phân tích vào lúc này.";
@@ -313,8 +326,10 @@ export async function getHeadToHeadAnalysis(
     3. Nhận xét chung về tình hình bán các sản phẩm này trong 7 ngày qua.`;
 
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return response.text;
+        // Fix: Use correct model name from guidelines
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Fix: Access .text property directly
+        return response.text || "Không có phản hồi.";
     } catch (error) {
         console.error("AI Head to Head Analysis error:", error);
         return "Không thể tạo phân tích vào lúc này.";
@@ -343,8 +358,10 @@ export async function getSummarySynthesisAnalysis(
     3. Có nhân viên nào bán đều các sản phẩm được chọn không?`;
 
     try {
-        const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-        return response.text;
+        // Fix: Use correct model name from guidelines
+        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        // Fix: Access .text property directly
+        return response.text || "Không thể phân tích dữ liệu.";
     } catch (error) {
         console.error("AI Summary Synthesis Analysis error:", error);
         return "Không thể tạo phân tích vào lúc này.";

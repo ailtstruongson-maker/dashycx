@@ -3,6 +3,9 @@ import { GoogleGenAI, Chat } from "@google/genai";
 
 export type AppState = 'upload' | 'loading' | 'processing' | 'dashboard';
 
+// Added ViewType for navigation
+export type ViewType = 'dashboard' | 'tax' | 'coupon' | 'efficiency' | 'checklist' | 'bi_update';
+
 export interface Status {
     message: string;
     type: 'info' | 'success' | 'error';

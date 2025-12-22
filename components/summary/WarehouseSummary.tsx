@@ -6,7 +6,6 @@ import { useDashboardContext } from '../../contexts/DashboardContext';
 import { getWarehouseColumnConfig, saveWarehouseColumnConfig } from '../../services/dbService';
 import { COL, WAREHOUSE_HEADER_COLORS, DEFAULT_WAREHOUSE_COLUMNS } from '../../constants';
 import { getRowValue } from '../../utils/dataUtils';
-import { exportElementAsImage } from '../../services/uiService';
 import LoadingOverlay from '../common/LoadingOverlay';
 import WarehouseSettingsModal from './WarehouseSettingsModal';
 import { useWarehouseLogic } from '../../hooks/useWarehouseLogic';
@@ -85,7 +84,7 @@ const WarehouseSummary: React.FC<WarehouseSummaryProps> = ({ onBatchExport }) =>
         const loadConfig = async () => {
             let config = await getWarehouseColumnConfig();
             if (!config || config.length === 0) {
-                config = [...DEFAULT_WAREHOUSE_COLUMNS]; // Use imported default
+                config = [...DEFAULT_WAREHOUSE_COLUMNS];
                 await saveWarehouseColumnConfig(config);
             }
             setColumns(config);
@@ -139,7 +138,7 @@ const WarehouseSummary: React.FC<WarehouseSummaryProps> = ({ onBatchExport }) =>
     return (
         <>
             <div id="warehouse-summary-view" className="chart-card mb-6 rounded-none relative" ref={summaryRef}>
-                {isProcessing && !isExporting && <LoadingOverlay />}
+                {(isProcessing || isExporting) && <LoadingOverlay />}
                 <div className="p-5 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center shadow-sm border border-emerald-200 dark:border-emerald-800">
@@ -157,22 +156,51 @@ const WarehouseSummary: React.FC<WarehouseSummaryProps> = ({ onBatchExport }) =>
                         <button onClick={handleSingleExport} disabled={isExporting} title="Xuất Ảnh Báo Cáo" className="p-2 text-slate-500 dark:text-slate-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center w-10 h-10 border border-slate-200 dark:border-slate-700 shadow-sm">
                             {isExporting ? <Icon name="loader-2" className="animate-spin" /> : <Icon name="camera" />}
                         </button>
-                        <button onClick={onBatchExport} disabled={isExporting || uniqueFilterOptions.kho.length <= 1} title="Xuất hàng loạt ảnh Tổng Quan & Báo Cáo Kho theo từng kho" className="p-2 text-slate-500 dark:text-slate-400 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center w-10 h-10 border border-slate-200 dark:border-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                            <Icon name="images" />
+                        <button onClick={onBatchExport} disabled={isExporting || uniqueFilterOptions.kho.length <= 1} title="TỰ ĐỘNG XUẤT HÀNG LOẠT: App sẽ tự động lọc từng kho và lưu ảnh báo cáo tương ứng." className="p-2 text-indigo-600 dark:text-indigo-400 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center justify-center w-10 h-10 border border-indigo-200 dark:border-indigo-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isExporting ? <Icon name="loader-2" className="animate-spin" /> : <Icon name="images" />}
                         </button>
                     </div>
                 </div>
-                <div className="w-full"><table className="w-full table-fixed text-sm"><thead className="align-middle"><tr className="bg-slate-50 dark:bg-slate-800/50"><th rowSpan={2} onClick={() => handleSort('khoName')} className="px-4 py-3 text-center uppercase text-sm font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-md border-l-2 border-r-2 border-b-2 border-t-4 border-red-800"><div className="flex items-center justify-center gap-1.5"><span>KHO</span></div></th>{groupedHeaders.map((group, index) => { const colors = WAREHOUSE_HEADER_COLORS[group.name] || WAREHOUSE_HEADER_COLORS['DEFAULT']; const borderClass = `border-r-2 ${colors.border}`; return (<th key={group.name} colSpan={group.colSpan} className={`p-2 text-center text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border-t-4 ${colors.border} ${borderClass} border-b-2 whitespace-normal`}>{group.name}</th>); })}</tr><tr className="bg-white/60 dark:bg-slate-800/60">{visibleColumns.map((col, index) => { const colors = WAREHOUSE_HEADER_COLORS[col.mainHeader] || WAREHOUSE_HEADER_COLORS['DEFAULT']; const isLastInGroup = lastColumnIdsInGroup.has(col.id); const borderClass = isLastInGroup ? `border-r-2 ${colors.border}` : `border-r ${colors.border}`; const borderBottom = `border-b-2 ${colors.border}`; return (<th key={col.id} onClick={() => handleSort(col.id)} className={`px-3 py-2 text-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors ${borderBottom} ${colors.sub} text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 ${borderClass}`}><div className="flex items-center justify-center"><span>{col.subHeader}</span></div></th>); })}</tr></thead>
+                <div className="w-full">
+                    <table className="w-full table-fixed text-sm">
+                        <thead className="align-middle">
+                            <tr className="bg-slate-50 dark:bg-slate-800/50">
+                                <th rowSpan={2} onClick={() => handleSort('khoName')} className="px-4 py-3 text-center uppercase text-sm font-bold cursor-pointer text-slate-700 dark:text-slate-200 shadow-md border-l-2 border-r-2 border-b-2 border-t-4 border-red-800">
+                                    <div className="flex items-center justify-center gap-1.5"><span>KHO</span></div>
+                                </th>
+                                {groupedHeaders.map((group) => { 
+                                    const colors = WAREHOUSE_HEADER_COLORS[group.name] || WAREHOUSE_HEADER_COLORS['DEFAULT']; 
+                                    const borderClass = `border-r-2 ${colors.border}`; 
+                                    return (
+                                        <th key={group.name} colSpan={group.colSpan} className={`p-2 text-center text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border-t-4 ${colors.border} ${borderClass} border-b-2 whitespace-normal`}>
+                                            {group.name}
+                                        </th>
+                                    ); 
+                                })}
+                            </tr>
+                            <tr className="bg-white/60 dark:bg-slate-800/60">
+                                {visibleColumns.map((col) => { 
+                                    const colors = WAREHOUSE_HEADER_COLORS[col.mainHeader] || WAREHOUSE_HEADER_COLORS['DEFAULT']; 
+                                    const isLastInGroup = lastColumnIdsInGroup.has(col.id); 
+                                    const borderClass = isLastInGroup ? `border-r-2 ${colors.border}` : `border-r ${colors.border}`; 
+                                    const borderBottom = `border-b-2 ${colors.border}`; 
+                                    return (
+                                        <th key={col.id} onClick={() => handleSort(col.id)} className={`px-3 py-2 text-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none transition-colors ${borderBottom} ${colors.sub} text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 ${borderClass}`}>
+                                            <div className="flex items-center justify-center"><span>{col.subHeader}</span></div>
+                                        </th>
+                                    ); 
+                                })}
+                            </tr>
+                        </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {sortedData.map((row) => {
                                 return (
                                 <tr key={row.khoName} data-kho-id={row.khoName} className="hover:bg-sky-50 dark:hover:bg-sky-900/50 transition-colors">
                                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-slate-100 text-center border-l-2 border-r-2 border-red-800">{row.khoName}</td>
-                                    {visibleColumns.map((col, index) => {
+                                    {visibleColumns.map((col) => {
                                         const value = (col.isCustom && col.productCodes) ? customProductColumnValues.get(col.id)?.get(row.khoName) : getColumnValue(row, col);
                                         const isHqqd = col.metric === 'hieuQuaQD';
                                         const isTraChamPercent = col.metric === 'traChamPercent';
-                                        
                                         const colors = WAREHOUSE_HEADER_COLORS[col.mainHeader] || WAREHOUSE_HEADER_COLORS['DEFAULT'];
                                         const isLastInGroup = lastColumnIdsInGroup.has(col.id);
                                         const borderClass = isLastInGroup ? `border-r-2 ${colors.border}` : `border-r ${colors.border}`;
@@ -202,11 +230,10 @@ const WarehouseSummary: React.FC<WarehouseSummaryProps> = ({ onBatchExport }) =>
                         <tfoot className="font-extrabold bg-sky-100 dark:bg-sky-900/50 text-sky-900 dark:text-sky-100 border-t-2 border-slate-300 dark:border-slate-600">
                              <tr className="border-t-2 border-slate-300 dark:border-slate-600">
                                 <td className="px-4 py-3 text-center bg-inherit border-l-2 border-r-2 border-b-2 border-red-800">Tổng</td>
-                                {visibleColumns.map((col, index) => {
+                                {visibleColumns.map((col) => {
                                     const isHqqd = col.metric === 'hieuQuaQD';
                                     const isTraChamPercent = col.metric === 'traChamPercent';
                                     const value = isHqqd ? (totals as any).hieuQuaQD : isTraChamPercent ? (totals as any).traChamPercent : customTotals.get(col.id);
-
                                     const colors = WAREHOUSE_HEADER_COLORS[col.mainHeader] || WAREHOUSE_HEADER_COLORS['DEFAULT'];
                                     const isLastInGroup = lastColumnIdsInGroup.has(col.id);
                                     const borderClass = isLastInGroup ? `border-r-2 ${colors.border}` : `border-r ${colors.border}`;
