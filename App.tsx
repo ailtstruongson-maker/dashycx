@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import DashboardView from './components/views/DashboardView';
 import Sidebar from './components/layout/Sidebar';
-// Fix casing issue in TaxCalculatorView import
-import TaxCalculatorView from './components/views/TaxCalculatorView';
+// Import implemented view from TaxComponents to avoid casing conflict of filenames in the root views directory
+import { TaxCalculatorView } from './components/views/tax/TaxComponents';
 import CouponConverterView from './components/views/CouponConverterView';
 import EmployeeEfficiencyView from './components/views/employee-efficiency/EmployeeEfficiencyView';
 import DailyChecklistReportView from './components/views/DailyChecklistReportView';

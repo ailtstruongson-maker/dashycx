@@ -1,119 +1,79 @@
+import { writable } from 'svelte/store';
+import type { AppState, FilterState, ProcessedData, ProductConfig } from '../types';
 
-import { writable, derived } from 'svelte/store';
-import type { AppState, DataRow, FilterState, ProcessedData, ProductConfig } from '../types';
-
-/**
- * Điều hướng module chính
- */
-export type ViewType = 'dashboard' | 'tax' | 'coupon' | 'shift' | 'efficiency' | 'checklist';
-export const currentView = writable<ViewType>('dashboard');
-
-/**
- * Trạng thái điều hướng của ứng dụng
- */
+export const currentView = writable('dashboard');
 export const appState = writable<AppState>('upload');
+export const isProcessing = writable(false);
+export const processedData = writable<ProcessedData | null>(null);
+export const fileInfo = writable({ filename: '', savedAt: '' });
 
-/**
- * Dữ liệu thô đã qua xử lý chuẩn hóa từ Worker
- */
-export const originalData = writable<DataRow[]>([]);
-
-/**
- * Cấu hình ngành hàng và hệ số quy đổi
- */
-export const productConfig = writable<Record<string, number> | null>(null);
-
-/**
- * Bản đồ ánh xạ Mã nhân viên -> Bộ phận (từ file Phân ca)
- */
+// Added missing stores for product configuration and department mapping to resolve compilation errors
+export const productConfig = writable<ProductConfig>({});
 export const departmentMap = writable<Record<string, string>>({});
 
-/**
- * Thông tin tệp tin đang hiển thị
- */
-export const fileInfo = writable<{ filename: string; savedAt: string } | null>(null);
+// Store cho thời gian xử lý (ms)
+export const processingTime = writable(0);
+let timerInterval: any;
 
-/**
- * Trạng thái đang xử lý (Hiển thị loading overlay)
- */
-export const isProcessing = writable(false);
+function startTimer() {
+  processingTime.set(0);
+  const start = Date.now();
+  timerInterval = setInterval(() => {
+    processingTime.set(Date.now() - start);
+  }, 100);
+}
 
-/**
- * Thông báo tiến độ xử lý dữ liệu
- */
-export const statusMessage = writable({ 
-  message: '', 
-  type: 'info' as 'info' | 'success' | 'error', 
-  progress: 0 
-});
+function stopTimer() {
+  clearInterval(timerInterval);
+}
 
-/**
- * Trạng thái bộ lọc hiện tại
- */
-const initialFilterState: FilterState = {
-    kho: 'all',
-    xuat: 'all',
-    trangThai: [],
-    nguoiTao: [],
-    department: [],
-    startDate: '',
-    endDate: '',
-    dateRange: 'all',
-    industryGrid: {
-        selectedGroups: [],
-        selectedSubgroups: [],
-    },
-    summaryTable: {
-        parent: [],
-        child: [],
-        manufacturer: [],
-        creator: [],
-        product: [],
-        drilldownOrder: ['parent', 'child', 'manufacturer', 'creator', 'product'],
-        sort: { column: 'totalRevenue', direction: 'desc' }
-    }
-};
+let worker: Worker | null = null;
 
-// Khởi tạo filter từ localStorage nếu có
-const savedGridFilters = typeof localStorage !== 'undefined' ? localStorage.getItem('industryGridFilters') : null;
-const industryGrid = savedGridFilters ? JSON.parse(savedGridFilters) : initialFilterState.industryGrid;
+export function getWorker() {
+  if (!worker) {
+    worker = new Worker(new URL('../services/worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (e) => {
+      const { type, payload } = e.data;
+      if (type === 'SUCCESS' || type === 'FILTER_SUCCESS' || type === 'ERROR') {
+        processedData.set(payload);
+        isProcessing.set(false);
+        stopTimer();
+        if (type === 'ERROR') {
+          alert("Lỗi: " + e.data.message);
+          appState.set('upload');
+        }
+      }
+    };
+  }
+  return worker;
+}
 
 export const filterState = writable<FilterState>({
-    ...initialFilterState,
-    industryGrid
+    kho: 'all', xuat: 'all', trangThai: [], nguoiTao: [], department: [],
+    startDate: '', endDate: '', dateRange: 'all',
+    industryGrid: { selectedGroups: [], selectedSubgroups: [] },
+    summaryTable: {
+        parent: [], child: [], manufacturer: [], creator: [], product: [],
+        drilldownOrder: ['parent', 'child'], sort: { column: 'totalRevenue', direction: 'desc' }
+      }
 });
 
-/**
- * Store tự động tính toán các giá trị duy nhất cho Dropdown bộ lọc
- */
-export const uniqueFilters = derived([originalData, departmentMap], ([$data, $deptMap]) => {
-    if (!$data || $data.length === 0) {
-        return { kho: [], trangThai: [], nguoiTao: [], department: [] };
-    }
+// Gửi lệnh xử lý file và khởi động timer
+export function triggerFileUpload(file: File) {
+  const w = getWorker();
+  isProcessing.set(true);
+  appState.set('loading');
+  startTimer();
+  w.postMessage({ type: 'IMPORT_FILE', payload: { file } });
+}
 
-    const khoSet = new Set<string>();
-    const statusSet = new Set<string>();
-    const creatorSet = new Set<string>();
-    
-    $data.forEach(row => {
-        if (row['Mã kho tạo']) khoSet.add(String(row['Mã kho tạo']));
-        if (row['Trạng thái hồ sơ']) statusSet.add(String(row['Trạng thái hồ sơ']));
-        if (row['Người tạo']) creatorSet.add(String(row['Người tạo']));
-    });
-
-    const deptOptions = Array.from(new Set(Object.values($deptMap)))
-        .filter(d => d && !['quản lý', 'trưởng ca', 'kế toán'].some(k => String(d).toLowerCase().includes(k)))
-        .sort();
-
-    return {
-        kho: Array.from(khoSet).sort(),
-        trangThai: Array.from(statusSet).sort(),
-        nguoiTao: Array.from(creatorSet).sort(),
-        department: deptOptions as string[]
-    };
+let filterTimeout: any;
+filterState.subscribe(fs => {
+  if (worker) {
+    isProcessing.set(true);
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+      worker?.postMessage({ type: 'APPLY_FILTER', payload: fs });
+    }, 150);
+  }
 });
-
-/**
- * Dữ liệu đã qua tính toán
- */
-export const processedData = writable<ProcessedData | null>(null);

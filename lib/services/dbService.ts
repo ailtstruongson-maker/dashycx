@@ -4,121 +4,81 @@ import type {
   ProductConfig, 
   StoredSalesData, 
   StoredProductConfig, 
-  AnalysisRecord, 
-  CustomContestTab, 
-  HeadToHeadTableConfig,
-  ContestTableConfig
+  CustomContestTab,
+  FilterState
 } from '../types';
 
-const DB_NAME = 'DashboardDB_Svelte';
-const DB_VERSION = 1;
-const STORE_NAME = 'appStorage';
-
-// Khóa định danh cho các loại dữ liệu
-const KEYS = {
-  DEPT_MAP: 'departmentMap',
-  SALES_DATA: 'salesData',
-  PRODUCT_CONFIG: 'productConfig',
-  DEDUPE_SETTING: 'deduplicationSetting',
-  KPI_TARGETS: 'kpiTargets',
-  ANALYSIS_HISTORY: 'analysisHistory',
-  CUSTOM_TABS: 'customContestTabs',
-  H2H_TABLES: 'headToHeadCustomTables',
-  INDUSTRY_TABLES: 'industryAnalysisCustomTables'
-};
+const DB_NAME = 'BI_HUB_DATABASE_V2';
+const DB_VERSION = 2;
+const APP_STORE = 'appStorage';
+const SETTINGS_STORE = 'settings';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
-/**
- * Khởi tạo và kết nối cơ sở dữ liệu IndexedDB
- */
 function getDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      reject(new Error('Trình duyệt không hỗ trợ IndexedDB.'));
-      return;
-    }
-
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
+      if (!db.objectStoreNames.contains(APP_STORE)) db.createObjectStore(APP_STORE);
+      if (!db.objectStoreNames.contains(SETTINGS_STORE)) db.createObjectStore(SETTINGS_STORE);
     };
-
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-
   return dbPromise;
 }
 
 /**
- * Hàm tiện ích để thực thi transaction
+ * Thao tác với Settings (Thay thế localStorage)
  */
-async function performOp<T>(mode: IDBTransactionMode, op: (store: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
+export async function saveSetting(key: string, value: any): Promise<void> {
   const db = await getDb();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, mode);
-    const store = transaction.objectStore(STORE_NAME);
-    const request = op(store);
+    const tx = db.transaction(SETTINGS_STORE, 'readwrite');
+    const store = tx.objectStore(SETTINGS_STORE);
+    store.put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
 
-    request.onsuccess = () => resolve(request.result);
+export async function getSetting<T>(key: string): Promise<T | null> {
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SETTINGS_STORE, 'readonly');
+    const store = tx.objectStore(SETTINGS_STORE);
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result || null);
     request.onerror = () => reject(request.error);
   });
 }
 
-// --- API Dữ liệu Bán hàng ---
+// Các hàm cũ cho dữ liệu lớn
 export async function saveSalesData(data: DataRow[], filename: string): Promise<void> {
-  const storedObject: StoredSalesData = { data, filename, savedAt: new Date() };
-  await performOp('readwrite', (store) => store.put(storedObject, KEYS.SALES_DATA));
+  const stored: StoredSalesData = { data, filename, savedAt: new Date() };
+  const db = await getDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(APP_STORE, 'readwrite');
+    tx.objectStore(APP_STORE).put(stored, 'salesData');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export async function getSalesData(): Promise<StoredSalesData | null> {
-  return performOp<StoredSalesData>('readonly', (store) => store.get(KEYS.SALES_DATA));
+  const db = await getDb();
+  return new Promise((resolve) => {
+    const tx = db.transaction(APP_STORE, 'readonly');
+    const request = tx.objectStore(APP_STORE).get('salesData');
+    request.onsuccess = () => resolve(request.result || null);
+  });
 }
 
 export async function clearSalesData(): Promise<void> {
-  await performOp('readwrite', (store) => store.delete(KEYS.SALES_DATA));
-}
-
-// --- API Phân ca & Bộ phận ---
-export async function saveDepartmentMap(map: Record<string, string>): Promise<void> {
-  await performOp('readwrite', (store) => store.put(map, KEYS.DEPT_MAP));
-}
-
-export async function getDepartmentMap(): Promise<Record<string, string> | null> {
-  return performOp<Record<string, string>>('readonly', (store) => store.get(KEYS.DEPT_MAP));
-}
-
-// --- API Cấu hình Sản phẩm ---
-export async function saveProductConfig(config: ProductConfig, url: string): Promise<void> {
-  const stored: StoredProductConfig = { config, url, fetchedAt: new Date() };
-  await performOp('readwrite', (store) => store.put(stored, KEYS.PRODUCT_CONFIG));
-}
-
-export async function getProductConfig(): Promise<StoredProductConfig | null> {
-  return performOp<StoredProductConfig>('readonly', (store) => store.get(KEYS.PRODUCT_CONFIG));
-}
-
-// --- API Bảng Thi Đua Tùy Chỉnh ---
-export async function saveCustomTabs(tabs: CustomContestTab[]): Promise<void> {
-  await performOp('readwrite', (store) => store.put(tabs, KEYS.CUSTOM_TABS));
-}
-
-export async function getCustomTabs(): Promise<CustomContestTab[] | null> {
-  return performOp<CustomContestTab[]>('readonly', (store) => store.get(KEYS.CUSTOM_TABS));
-}
-
-// --- Cài đặt khác ---
-export async function saveKpiTargets(targets: { hieuQua: number; traGop: number }): Promise<void> {
-  await performOp('readwrite', (store) => store.put(targets, KEYS.KPI_TARGETS));
-}
-
-export async function getKpiTargets(): Promise<{ hieuQua: number; traGop: number } | null> {
-  return performOp<{ hieuQua: number; traGop: number }>('readonly', (store) => store.get(KEYS.KPI_TARGETS));
+  const db = await getDb();
+  const tx = db.transaction(APP_STORE, 'readwrite');
+  tx.objectStore(APP_STORE).delete('salesData');
 }

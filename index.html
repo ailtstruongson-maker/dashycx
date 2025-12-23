@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi" class="light">
 
@@ -6,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Nền tảng phân tích dữ liệu bán hàng hiệu suất cao tích hợp Trợ lý ảo AI. Xử lý file Excel lớn mượt mà, trực quan hóa dữ liệu đa chiều.">
-    <title>Intelligence Hub - Phân Tích Kinh Doanh & AI</title>
+    <title>Intelligence Hub - Svelte Dashboard & AI</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,16 +16,7 @@
                 extend: {
                     colors: {
                         indigo: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            200: '#c7d2fe',
-                            300: '#a5b4fc',
-                            400: '#818cf8',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            800: '#3730a3',
-                            900: '#1e1b4b',
+                            50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#1e1b4b',
                         },
                     },
                     animation: {
@@ -45,11 +35,10 @@
         }
     </script>
     
-    <!-- Lucide Icons -->
+    <!-- External Dependencies -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Google Charts -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,31 +52,27 @@
     "svelte": "https://esm.sh/svelte@^5.0.0",
     "svelte/": "https://esm.sh/svelte@^5.0.0/",
     "chart.js": "https://esm.sh/chart.js@^4.4.0",
+    "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3"
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
     <link rel="stylesheet" href="./styles.css">
 </head>
 
-<body class="bg-slate-50 dark:bg-slate-900 transition-colors duration-500 relative min-h-screen antialiased text-slate-900 dark:text-slate-100">
+<body class="bg-slate-50 dark:bg-slate-950 transition-colors duration-500 relative min-h-screen antialiased text-slate-900 dark:text-slate-100 overflow-x-hidden">
     <!-- Global Background Effects -->
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
-        <!-- Grid Pattern -->
-        <div class="absolute inset-0 bg-grid-pattern opacity-60"></div>
-        
-        <!-- Animated Blobs (Aurora Effect) -->
-        <div class="absolute top-0 -left-4 w-96 h-96 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 animate-blob"></div>
-        <div class="absolute top-0 -right-4 w-96 h-96 bg-yellow-300 dark:bg-yellow-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-        <div class="absolute -bottom-8 left-20 w-96 h-96 bg-pink-300 dark:bg-pink-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-72 h-72 bg-blue-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div class="absolute inset-0 bg-grid-pattern opacity-40"></div>
+        <div class="absolute top-0 -left-4 w-96 h-96 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob"></div>
+        <div class="absolute top-0 -right-4 w-96 h-96 bg-indigo-300 dark:bg-indigo-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div class="absolute -bottom-8 left-20 w-96 h-96 bg-emerald-300 dark:bg-emerald-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
     </div>
 
     <div id="root" class="relative z-10"></div>
-    <!-- Fixed Entry Point to index.tsx -->
-    <script type="module" src="./index.tsx"></script>
+    <!-- Entry point for Svelte 5 -->
+    <script type="module" src="./main.ts"></script>
 </body>
 
 </html>

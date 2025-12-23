@@ -1,23 +1,22 @@
 
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
-  import { processedData } from '../../stores/dashboardStore';
+  import { processedData, kpiTargets } from '../../stores/dashboardStore';
   import { formatCurrency, formatNumber } from '../../utils/formatters';
 
   $: kpis = $processedData?.kpis;
 
-  // Logic màu sắc cho Hiệu quả
-  function getHqColor(val: number) {
-    if (val >= 40) return 'teal';
-    if (val >= 30) return 'amber';
-    return 'red';
+  function updateGoal(key: 'hieuQua' | 'traGop') {
+    const newVal = prompt(`Nhập mục tiêu ${key === 'hieuQua' ? 'Hiệu quả' : 'Trả góp'} mới (%):`, $kpiTargets[key].toString());
+    if (newVal && !isNaN(parseFloat(newVal))) {
+      kpiTargets.update(t => ({ ...t, [key]: parseFloat(newVal) }));
+    }
   }
 </script>
 
 {#if kpis}
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
   
-  <!-- 1. Doanh Thu QD -->
   <KpiCard 
     title="Doanh Thu Quy Đổi"
     value={formatCurrency(kpis.doanhThuQD)}
@@ -26,25 +25,28 @@
     trend={`Thực: <b>${formatCurrency(kpis.totalRevenue)}</b> • Thu hộ: <b>${formatNumber(kpis.soLuongThuHo)}</b>`}
   />
 
-  <!-- 2. Hiệu Quả QD -->
-  <KpiCard 
-    title="Hiệu Quả Quy Đổi"
-    value={(kpis.hieuQuaQD * 100).toFixed(1) + '%'}
-    icon="trending-up"
-    color={getHqColor(kpis.hieuQuaQD * 100)}
-    trend={kpis.hieuQuaQD * 100 >= 40 ? 'Đạt mục tiêu xuất sắc ✨' : 'Cần cải thiện bán kèm 📈'}
-  />
+  <div on:click={() => updateGoal('hieuQua')} class="cursor-pointer">
+    <KpiCard 
+      title="Hiệu Quả Quy Đổi"
+      value={(kpis.hieuQuaQD * 100).toFixed(1) + '%'}
+      icon="trending-up"
+      color={kpis.hieuQuaQD * 100 >= $kpiTargets.hieuQua ? 'teal' : 'amber'}
+      isWarning={kpis.hieuQuaQD * 100 < $kpiTargets.hieuQua}
+      trend={`Mục tiêu: <b>${$kpiTargets.hieuQua}%</b> (Nhấn để đổi)`}
+    />
+  </div>
 
-  <!-- 3. Tỷ Lệ Trả Góp -->
-  <KpiCard 
-    title="Tỷ Lệ Trả Góp"
-    value={kpis.traGopPercent.toFixed(1) + '%'}
-    icon="receipt"
-    color="pink"
-    trend={`DT: <b>${formatCurrency(kpis.traGopValue)}</b> • SL: <b>${formatNumber(kpis.traGopCount)}</b>`}
-  />
+  <div on:click={() => updateGoal('traGop')} class="cursor-pointer">
+    <KpiCard 
+      title="Tỷ Lệ Trả Góp"
+      value={kpis.traGopPercent.toFixed(1) + '%'}
+      icon="receipt"
+      color={kpis.traGopPercent >= $kpiTargets.traGop ? 'pink' : 'amber'}
+      isWarning={kpis.traGopPercent < $kpiTargets.traGop}
+      trend={`Mục tiêu: <b>${$kpiTargets.traGop}%</b> (Nhấn để đổi)`}
+    />
+  </div>
 
-  <!-- 4. Chờ Xuất Kho -->
   <KpiCard 
     title="DT Chờ Xuất"
     value={formatCurrency(kpis.doanhThuQDChoXuat)}
@@ -54,11 +56,4 @@
   />
 
 </div>
-{:else}
-  <!-- Skeleton Loading (Optional) -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    {#each Array(4) as _}
-      <div class="h-32 bg-slate-100 dark:bg-slate-800 rounded-2xl animate-pulse"></div>
-    {/each}
-  </div>
 {/if}

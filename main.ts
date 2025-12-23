@@ -1,11 +1,10 @@
-
 import { mount } from 'svelte';
 import App from './App.svelte';
 
 const rootElement = document.getElementById('root');
 
 if (rootElement) {
-    // Khởi tạo Svelte App
+    // Mount the Svelte application to the root element
     mount(App, {
         target: rootElement
     });
